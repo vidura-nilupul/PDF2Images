@@ -1,9 +1,13 @@
 import fitz  # PyMuPDF
 import os
-import tkinter as tk
-from tkinter import filedialog, messagebox
 from pathlib import Path
+import ttkbootstrap as tb
+from tkinter import filedialog
+from ttkbootstrap.constants import *
 
+# ------------------------
+# PDF to Images Converter
+# ------------------------
 def select_pdf():
     file_path = filedialog.askopenfilename(
         title="Select PDF file",
@@ -18,53 +22,102 @@ def select_output_folder():
 def convert_pdf_to_images():
     pdf_path = pdf_path_var.get()
     output_folder = output_folder_var.get()
+    status_label.config(text="", foreground="")
 
     if not pdf_path or not output_folder:
-        messagebox.showerror("Error", "Please select both a PDF file and an output folder.")
+        status_label.config(text="Please select both a PDF file and an output folder.", foreground="red")
         return
 
     if not os.path.exists(pdf_path):
-        messagebox.showerror("Error", f"The file '{pdf_path}' does not exist.")
+        status_label.config(text="The selected PDF does not exist.", foreground="red")
         return
 
     try:
         pdf_document = fitz.open(pdf_path)
-        pdf_name = Path(pdf_path).stem  # File name without extension
+        total_pages = len(pdf_document)
+        pdf_name = Path(pdf_path).stem
 
-        for page_number in range(len(pdf_document)):
+        progress_bar["maximum"] = total_pages
+        progress_bar["value"] = 0
+
+        for page_number in range(total_pages):
             page = pdf_document[page_number]
-            pix = page.get_pixmap(dpi=300)  # High-quality DPI
+            pix = page.get_pixmap(dpi=300)
             image_filename = f"{pdf_name}_page_{page_number + 1}.png"
             image_path = os.path.join(output_folder, image_filename)
             pix.save(image_path)
 
+            progress_bar["value"] = page_number + 1
+            root.update_idletasks()
+
         pdf_document.close()
-        messagebox.showinfo("Success", f"PDF converted successfully!\nImages saved in:\n{output_folder}")
+
+        # Success message
+        status_label.config(text=f"Conversion completed! Saved in: {output_folder}", foreground="green")
+
+        # Reset for next run
+        pdf_path_var.set("")
+        output_folder_var.set("")
+        progress_bar["value"] = 0
 
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+        status_label.config(text=f"Error: {e}", foreground="red")
 
-# Create GUI
-root = tk.Tk()
-root.title("PDF to Images Converter")
-root.geometry("500x250")
+
+def toggle_theme():
+    if style.theme.name == "darkly":
+        style.theme_use("flatly")  # Light theme
+        theme_toggle_btn.config(text="Switch to Dark Mode")
+    else:
+        style.theme_use("darkly")  # Dark theme
+        theme_toggle_btn.config(text="Switch to Light Mode")
+
+# ------------------------
+# GUI Setup
+# ------------------------
+root = tb.Window(themename="darkly")  # Start in dark mode
+root.title("PDF2Image")
+root.geometry("")  # Let Tkinter size the window automatically
 root.resizable(False, False)
 
-# Variables
-pdf_path_var = tk.StringVar()
-output_folder_var = tk.StringVar()
+style = tb.Style()
 
-# PDF File selection
-tk.Label(root, text="PDF File:").pack(pady=(10, 0))
-tk.Entry(root, textvariable=pdf_path_var, width=50).pack(pady=5)
-tk.Button(root, text="Browse PDF", command=select_pdf).pack()
+# Variables
+pdf_path_var = tb.StringVar()
+output_folder_var = tb.StringVar()
+
+# Title
+tb.Label(root, text="PDF2Image", font=("Segoe UI", 20, "bold")).pack(pady=10)
+
+# PDF selection
+tb.Label(root, text="PDF File:").pack(anchor="w", padx=20)
+tb.Entry(root, textvariable=pdf_path_var, width=50).pack(padx=20, pady=5)
+tb.Button(root, text="Browse PDF", bootstyle=PRIMARY, command=select_pdf).pack(pady=(0, 10))
 
 # Output folder selection
-tk.Label(root, text="Output Folder:").pack(pady=(10, 0))
-tk.Entry(root, textvariable=output_folder_var, width=50).pack(pady=5)
-tk.Button(root, text="Browse Folder", command=select_output_folder).pack()
+tb.Label(root, text="Output Folder:").pack(anchor="w", padx=20)
+tb.Entry(root, textvariable=output_folder_var, width=50).pack(padx=20, pady=5)
+tb.Button(root, text="Browse Folder", bootstyle=INFO, command=select_output_folder).pack(pady=(0, 15))
 
 # Convert button
-tk.Button(root, text="Convert to Images", command=convert_pdf_to_images, bg="green", fg="white", width=20).pack(pady=20)
+tb.Button(root, text="Convert to Images", bootstyle=SUCCESS, command=convert_pdf_to_images, width=20).pack(pady=5)
+
+# Progress bar
+progress_bar = tb.Progressbar(root, length=400, mode="determinate", bootstyle=SUCCESS)
+progress_bar.pack(pady=10)
+
+# Status label
+status_label = tb.Label(root, text="", font=("Segoe UI", 10))
+status_label.pack()
+
+# Theme toggle
+theme_toggle_btn = tb.Button(root, text="Switch to Light Mode", bootstyle=SECONDARY, command=toggle_theme)
+theme_toggle_btn.pack(pady=5)
+
+# Footer / Branding
+footer_frame = tb.Frame(root)
+footer_frame.pack(side="bottom", fill="x", pady=5)
+tb.Label(footer_frame, text="Product of The Solution Z", font=("Segoe UI", 8), anchor="e").pack(side="right", padx=10)
 
 root.mainloop()
+# End of PDF2Image.py
