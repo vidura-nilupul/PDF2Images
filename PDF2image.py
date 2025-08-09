@@ -8,55 +8,69 @@ from ttkbootstrap.constants import *
 # ------------------------
 # PDF to Images Converter
 # ------------------------
-def select_pdf():
-    file_path = filedialog.askopenfilename(
-        title="Select PDF file",
-        filetypes=[("PDF files", "*.pdf")]
-    )
-    pdf_path_var.set(file_path)
+def select_input():
+    if input_mode_var.get() == "file":
+        file_path = filedialog.askopenfilename(
+            title="Select PDF file",
+            filetypes=[("PDF files", "*.pdf")]
+        )
+        input_path_var.set(file_path)
+    elif input_mode_var.get() == "folder":
+        folder_path = filedialog.askdirectory(title="Select Folder Containing PDFs")
+        input_path_var.set(folder_path)
 
 def select_output_folder():
     folder_path = filedialog.askdirectory(title="Select Output Folder")
     output_folder_var.set(folder_path)
 
-def convert_pdf_to_images():
-    pdf_path = pdf_path_var.get()
+def convert_to_images():
+    input_path = input_path_var.get()
     output_folder = output_folder_var.get()
     status_label.config(text="", foreground="")
 
-    if not pdf_path or not output_folder:
-        status_label.config(text="Please select both a PDF file and an output folder.", foreground="red")
+    if not input_path or not output_folder:
+        status_label.config(text="Please select both an input and an output folder.", foreground="red")
         return
 
-    if not os.path.exists(pdf_path):
-        status_label.config(text="The selected PDF does not exist.", foreground="red")
+    if not os.path.exists(input_path):
+        status_label.config(text="The selected input path does not exist.", foreground="red")
         return
 
     try:
-        pdf_document = fitz.open(pdf_path)
-        total_pages = len(pdf_document)
-        pdf_name = Path(pdf_path).stem
+        if input_mode_var.get() == "file":
+            pdf_files = [input_path]  # Single file
+        elif input_mode_var.get() == "folder":
+            pdf_files = [os.path.join(input_path, f) for f in os.listdir(input_path) if f.lower().endswith('.pdf')]
 
-        progress_bar["maximum"] = total_pages
+        if not pdf_files:
+            status_label.config(text="No PDF files found in the selected folder.", foreground="red")
+            return
+
+        total_files = len(pdf_files)
+        progress_bar["maximum"] = total_files
         progress_bar["value"] = 0
 
-        for page_number in range(total_pages):
-            page = pdf_document[page_number]
-            pix = page.get_pixmap(dpi=300)
-            image_filename = f"{pdf_name}_page_{page_number + 1}.png"
-            image_path = os.path.join(output_folder, image_filename)
-            pix.save(image_path)
+        for idx, pdf_file in enumerate(pdf_files):
+            pdf_document = fitz.open(pdf_file)
+            total_pages = len(pdf_document)
+            pdf_name = Path(pdf_file).stem
 
-            progress_bar["value"] = page_number + 1
+            for page_number in range(total_pages):
+                page = pdf_document[page_number]
+                pix = page.get_pixmap(dpi=300)
+                image_filename = f"{pdf_name}_page_{page_number + 1}.png"
+                image_path = os.path.join(output_folder, image_filename)
+                pix.save(image_path)
+
+            pdf_document.close()
+            progress_bar["value"] = idx + 1
             root.update_idletasks()
-
-        pdf_document.close()
 
         # Success message
         status_label.config(text=f"Conversion completed! Saved in: {output_folder}", foreground="green")
 
         # Reset for next run
-        pdf_path_var.set("")
+        input_path_var.set("")
         output_folder_var.set("")
         progress_bar["value"] = 0
 
@@ -83,16 +97,22 @@ root.resizable(False, False)
 style = tb.Style()
 
 # Variables
-pdf_path_var = tb.StringVar()
+input_path_var = tb.StringVar()
 output_folder_var = tb.StringVar()
+input_mode_var = tb.StringVar(value="file")  # Default to "file"
 
 # Title
 tb.Label(root, text="PDF2Image", font=("Segoe UI", 20, "bold")).pack(pady=10)
 
-# PDF selection
-tb.Label(root, text="PDF File:").pack(anchor="w", padx=20)
-tb.Entry(root, textvariable=pdf_path_var, width=50).pack(padx=20, pady=5)
-tb.Button(root, text="Browse PDF", bootstyle=PRIMARY, command=select_pdf).pack(pady=(0, 10))
+# Input mode selection
+tb.Label(root, text="Input Mode:").pack(anchor="w", padx=20)
+tb.Radiobutton(root, text="Single PDF File", variable=input_mode_var, value="file", bootstyle="info").pack(anchor="w", padx=40)
+tb.Radiobutton(root, text="Folder Containing PDFs", variable=input_mode_var, value="folder", bootstyle="info").pack(anchor="w", padx=40)
+
+# Input selection
+tb.Label(root, text="Input Path:").pack(anchor="w", padx=20)
+tb.Entry(root, textvariable=input_path_var, width=50).pack(padx=20, pady=5)
+tb.Button(root, text="Browse", bootstyle=PRIMARY, command=select_input).pack(pady=(0, 10))
 
 # Output folder selection
 tb.Label(root, text="Output Folder:").pack(anchor="w", padx=20)
@@ -100,7 +120,7 @@ tb.Entry(root, textvariable=output_folder_var, width=50).pack(padx=20, pady=5)
 tb.Button(root, text="Browse Folder", bootstyle=INFO, command=select_output_folder).pack(pady=(0, 15))
 
 # Convert button
-tb.Button(root, text="Convert to Images", bootstyle=SUCCESS, command=convert_pdf_to_images, width=20).pack(pady=5)
+tb.Button(root, text="Convert to Images", bootstyle=SUCCESS, command=convert_to_images, width=20).pack(pady=5)
 
 # Progress bar
 progress_bar = tb.Progressbar(root, length=400, mode="determinate", bootstyle=SUCCESS)
