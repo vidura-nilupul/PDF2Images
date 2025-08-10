@@ -28,7 +28,7 @@ This project is a graphical user interface (GUI) application built with Python. 
 
 The screenshot below shows the main interface of the application, where you can select a PDF file or a folder containing multiple PDFs for conversion.
 
-https://github.com/vidura-nilupul/PDF2Images/blob/main/assets/Screenshot.png
+![Screenshot of the app](assets/Screenshot.png)
 
 ## Getting Started
 
